@@ -124,9 +124,9 @@ function App() {
         />
       </div>
       
+      <h1 className="title">Words of Wisdom</h1>
+      
       <div className="content">
-        <h1 className="title">Words of Wisdom</h1>
-        
         <div className={`quote-container ${isChanging ? 'fade-out' : 'fade-in'}`}>
           {isLoading ? (
             <div className="quote-text">Loading...</div>
