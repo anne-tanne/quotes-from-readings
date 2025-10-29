@@ -23,6 +23,18 @@ function App() {
   const [isChanging, setIsChanging] = useState(false);
   const [quotes, setQuotes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [quoteQueue, setQuoteQueue] = useState([]);
+  const [queueIndex, setQueueIndex] = useState(0);
+
+  // Shuffle array using Fisher-Yates algorithm
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
 
   useEffect(() => {
     // Load quotes on mount - try fetch first, fallback to defaults
@@ -36,11 +48,18 @@ function App() {
           console.log('Quotes loaded from file:', data);
           if (data && Array.isArray(data) && data.length > 0) {
             setQuotes(data);
-            setCurrentQuote(data[Math.floor(Math.random() * data.length)]);
+            // Initialize queue with shuffled quotes
+            const shuffled = shuffleArray(data);
+            setQuoteQueue(shuffled);
+            setQueueIndex(0);
+            setCurrentQuote(shuffled[0]);
           } else {
             // Fallback to default quotes
             setQuotes(defaultQuotes);
-            setCurrentQuote(defaultQuotes[Math.floor(Math.random() * defaultQuotes.length)]);
+            const shuffled = shuffleArray(defaultQuotes);
+            setQuoteQueue(shuffled);
+            setQueueIndex(0);
+            setCurrentQuote(shuffled[0]);
           }
         } else {
           throw new Error(`HTTP error! status: ${res.status}`);
@@ -49,7 +68,10 @@ function App() {
         console.error('Error loading quotes, using defaults:', err);
         // Use default quotes if fetch fails
         setQuotes(defaultQuotes);
-        setCurrentQuote(defaultQuotes[Math.floor(Math.random() * defaultQuotes.length)]);
+        const shuffled = shuffleArray(defaultQuotes);
+        setQuoteQueue(shuffled);
+        setQueueIndex(0);
+        setCurrentQuote(shuffled[0]);
       } finally {
         setIsLoading(false);
       }
@@ -58,17 +80,30 @@ function App() {
     loadQuotes();
   }, []);
 
-  const getRandomQuote = () => {
-    if (quotes.length === 0) return null;
-    const randomIndex = Math.floor(Math.random() * quotes.length);
-    return quotes[randomIndex];
+  const getNextQuote = () => {
+    if (quoteQueue.length === 0) return null;
+    
+    const nextIndex = queueIndex + 1;
+    
+    // If we've gone through all quotes, shuffle again and start over
+    if (nextIndex >= quoteQueue.length) {
+      const reshuffled = shuffleArray(quotes);
+      setQuoteQueue(reshuffled);
+      setQueueIndex(0);
+      return reshuffled[0];
+    }
+    
+    setQueueIndex(nextIndex);
+    return quoteQueue[nextIndex];
   };
 
   const changeQuote = () => {
     setIsChanging(true);
     setTimeout(() => {
-      const newQuote = getRandomQuote();
-      setCurrentQuote(newQuote);
+      const newQuote = getNextQuote();
+      if (newQuote) {
+        setCurrentQuote(newQuote);
+      }
       setIsChanging(false);
     }, 300);
   };
