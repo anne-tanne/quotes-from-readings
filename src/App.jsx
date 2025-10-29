@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Prism from './Prism';
 import './App.css';
 
@@ -27,14 +27,14 @@ function App() {
   const [queueIndex, setQueueIndex] = useState(0);
 
   // Shuffle array using Fisher-Yates algorithm
-  const shuffleArray = (array) => {
+  const shuffleArray = useCallback((array) => {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled;
-  };
+  }, []);
 
   useEffect(() => {
     // Load quotes on mount - try fetch first, fallback to defaults
@@ -47,19 +47,23 @@ function App() {
           const data = await res.json();
           console.log('Quotes loaded from file:', data);
           if (data && Array.isArray(data) && data.length > 0) {
-            setQuotes(data);
-            // Initialize queue with shuffled quotes
             const shuffled = shuffleArray(data);
+            setQuotes(data);
             setQuoteQueue(shuffled);
             setQueueIndex(0);
-            setCurrentQuote(shuffled[0]);
+            // Use requestAnimationFrame to ensure smooth initial render
+            requestAnimationFrame(() => {
+              setCurrentQuote(shuffled[0]);
+            });
           } else {
             // Fallback to default quotes
-            setQuotes(defaultQuotes);
             const shuffled = shuffleArray(defaultQuotes);
+            setQuotes(defaultQuotes);
             setQuoteQueue(shuffled);
             setQueueIndex(0);
-            setCurrentQuote(shuffled[0]);
+            requestAnimationFrame(() => {
+              setCurrentQuote(shuffled[0]);
+            });
           }
         } else {
           throw new Error(`HTTP error! status: ${res.status}`);
@@ -67,20 +71,22 @@ function App() {
       } catch (err) {
         console.error('Error loading quotes, using defaults:', err);
         // Use default quotes if fetch fails
-        setQuotes(defaultQuotes);
         const shuffled = shuffleArray(defaultQuotes);
+        setQuotes(defaultQuotes);
         setQuoteQueue(shuffled);
         setQueueIndex(0);
-        setCurrentQuote(shuffled[0]);
+        requestAnimationFrame(() => {
+          setCurrentQuote(shuffled[0]);
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
     loadQuotes();
-  }, []);
+  }, [shuffleArray]);
 
-  const getNextQuote = () => {
+  const getNextQuote = useCallback(() => {
     if (quoteQueue.length === 0) return null;
     
     const nextIndex = queueIndex + 1;
@@ -95,25 +101,27 @@ function App() {
     
     setQueueIndex(nextIndex);
     return quoteQueue[nextIndex];
-  };
+  }, [quoteQueue, queueIndex, quotes, shuffleArray]);
 
-  const changeQuote = () => {
+  const changeQuote = useCallback(() => {
     setIsChanging(true);
-    setTimeout(() => {
-      const newQuote = getNextQuote();
-      if (newQuote) {
-        setCurrentQuote(newQuote);
-      }
-      setIsChanging(false);
-    }, 300);
-  };
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const newQuote = getNextQuote();
+        if (newQuote) {
+          setCurrentQuote(newQuote);
+        }
+        setIsChanging(false);
+      }, 300);
+    });
+  }, [getNextQuote]);
 
   return (
     <div className="app">
       <div className="background">
         <Prism
           animationType="rotate"
-          timeScale={0.5}
+          timeScale={0.4}
           height={3.5}
           baseWidth={5.5}
           scale={3.6}
